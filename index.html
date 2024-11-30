@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador de Dados Geográficos</title>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f2f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        #map {
+            height: 600px;
+            width: 100%;
+            border-radius: 8px;
+        }
+        h1 {
+            color: #1a73e8;
+            margin-bottom: 20px;
+        }
+        .legend {
+            background-color: white;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Visualizador de Dados Geográficos do Brasil</h1>
+        <div class="controls">
+            <div>
+                <label for="ano">Ano:</label>
+                <select id="ano">
+                    <option value="1991">1991</option>
+                    <option value="2000">2000</option>
+                    <option value="2010">2010</option>
+                </select>
+            </div>
+            <div>
+                <label for="variavel">Variável:</label>
+                <select id="variavel">
+                    <option value="indegree">Indegree</option>
+                    <option value="outdegree">Outdegree</option>
+                    <option value="degree">Degree</option>
+                    <option value="weighted indegree">Weighted Indegree</option>
+                    <option value="weighted outdegree">Weighted Outdegree</option>
+                    <option value="weighted degree">Weighted Degree</option>
+                    <option value="Eccentricity">Eccentricity</option>
+                    <option value="closnesscentrality">Closeness Centrality</option>
+                    <option value="harmonicclosnesscentrality">Harmonic Closeness Centrality</option>
+                    <option value="betweenesscentrality">Betweenness Centrality</option>
+                    <option value="modularity_class">Modularity Class</option>
+                </select>
+            </div>
+        </div>
+        <div id="map"></div>
+    </div>
+
+    <script>
+        // Inicializar o mapa
+        const map = L.map('map').setView([-14.235, -51.925], 4);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Carregar dados do CSV
+        async function loadData() {
+            const response = await fetch('fluxonodes1.csv');
+            const text = await response.text();
+            return text.split('
+').slice(1).map(row => {
+                const columns = row.split(',');
+                return {
+                    latitude: parseFloat(columns[2]),
+                    longitude: parseFloat(columns[1]),
+                    ano: parseInt(columns[17]),
+                    nome: columns[18],
+                    indegree: parseFloat(columns[4]),
+                    outdegree: parseFloat(columns[5]),
+                    degree: parseFloat(columns[6]),
+                    'weighted indegree': parseFloat(columns[7]),
+                    'weighted outdegree': parseFloat(columns[8]),
+                    'weighted degree': parseFloat(columns[9]),
+                    Eccentricity: parseFloat(columns[10]),
+                    closnesscentrality: parseFloat(columns[11]),
+                    harmonicclosnesscentrality: parseFloat(columns[12]),
+                    betweenesscentrality: parseFloat(columns[13]),
+                    modularity_class: parseFloat(columns[14])
+                };
+            });
+        }
+
+        let markers = L.layerGroup().addTo(map);
+
+        async function updateMap() {
+            const ano = parseInt(document.getElementById('ano').value);
+            const variavel = document.getElementById('variavel').value;
+            
+            const data = await loadData();
+            const filteredData = data.filter(d => d.ano === ano);
+
+            markers.clearLayers();
+
+            filteredData.forEach(point => {
+                const valor = point[variavel];
+                const radius = Math.max(5, Math.min(20, valor / 10));
+                
+                L.circleMarker([point.latitude, point.longitude], {
+                    radius: radius,
+                    fillColor: '#1a73e8',
+                    color: '#000',
+                    weight: 1,
+                    opacity: 1,
+                    fillOpacity: 0.7
+                })
+                .bindPopup(`
+                    <strong>${point.nome}</strong><br>
+                    ${variavel}: ${valor}
+                `)
+                .addTo(markers);
+            });
+        }
+
+        // Event listeners
+        document.getElementById('ano').addEventListener('change', updateMap);
+        document.getElementById('variavel').addEventListener('change', updateMap);
+
+        // Carregar mapa inicial
+        updateMap();
+    </script>
+</body>
+</html>
